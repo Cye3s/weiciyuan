@@ -6,12 +6,11 @@ import android.content.*;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.*;
 import android.webkit.WebView;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -82,6 +81,7 @@ public class GalleryActivity extends Activity {
         });
         pager.setCurrentItem(getIntent().getIntExtra("position", 0));
         pager.setOffscreenPageLimit(3);
+        pager.setPageTransformer(true, new ZoomOutPageTransformer());
     }
 
     @Override
@@ -185,7 +185,14 @@ public class GalleryActivity extends Activity {
         });
 
         WebView gif = (WebView) contentView.findViewById(R.id.gif);
+        gif.setBackgroundColor(getResources().getColor(R.color.transparent));
         gif.setVisibility(View.INVISIBLE);
+
+        WebView large = (WebView) contentView.findViewById(R.id.large);
+        large.setBackgroundColor(getResources().getColor(R.color.transparent));
+        large.setVisibility(View.INVISIBLE);
+
+        TextView wait = (TextView) contentView.findViewById(R.id.wait);
 
         TextView readError = (TextView) contentView.findViewById(R.id.error);
 
@@ -197,8 +204,8 @@ public class GalleryActivity extends Activity {
         if (ImageTool.isThisBitmapCanRead(path)
                 && taskMap.get(urls.get(position)) == null
                 && TaskCache.isThisUrlTaskFinished(urls.get(position))) {
-
-            readPicture(imageView, gif, readError, urls.get(position), path);
+            wait.setVisibility(View.INVISIBLE);
+            readPicture(imageView, gif, large, readError, urls.get(position), path);
 
         } else if (shouldDownLoadPicture) {
 
@@ -206,12 +213,13 @@ public class GalleryActivity extends Activity {
             spinner.setVisibility(View.VISIBLE);
 
             if (taskMap.get(urls.get(position)) == null) {
-                PicSimpleBitmapWorkerTask task = new PicSimpleBitmapWorkerTask(imageView, gif, spinner, readError, urls.get(position), taskMap);
+                wait.setVisibility(View.VISIBLE);
+                PicSimpleBitmapWorkerTask task = new PicSimpleBitmapWorkerTask(imageView, gif, large, spinner, wait, readError, urls.get(position), taskMap);
                 taskMap.put(urls.get(position), task);
                 task.executeOnExecutor(MyAsyncTask.THREAD_POOL_EXECUTOR);
             } else {
                 PicSimpleBitmapWorkerTask task = taskMap.get(urls.get(position));
-                task.setWidget(imageView, gif, spinner, readError);
+                task.setWidget(imageView, gif, spinner, wait, readError);
             }
         }
     }
@@ -228,21 +236,24 @@ public class GalleryActivity extends Activity {
 
         };
 
-        public void setWidget(ImageView iv, WebView gif, CircleProgressView spinner, TextView readError) {
+        public void setWidget(ImageView iv, WebView gif, CircleProgressView spinner, TextView wait, TextView readError) {
             this.iv = iv;
             this.spinner = spinner;
+            this.wait = wait;
             this.readError = readError;
             this.gif = gif;
         }
 
         private ImageView iv;
         private WebView gif;
+        private WebView large;
+        private TextView wait;
         private String url;
         private CircleProgressView spinner;
         private TextView readError;
         private HashMap<String, PicSimpleBitmapWorkerTask> taskMap;
 
-        public PicSimpleBitmapWorkerTask(ImageView iv, WebView gif, CircleProgressView spinner,
+        public PicSimpleBitmapWorkerTask(ImageView iv, WebView gif, WebView large, CircleProgressView spinner, TextView wait,
                                          TextView readError, String url, HashMap<String, PicSimpleBitmapWorkerTask> taskMap) {
             this.iv = iv;
             this.url = url;
@@ -250,6 +261,8 @@ public class GalleryActivity extends Activity {
             this.readError = readError;
             this.taskMap = taskMap;
             this.gif = gif;
+            this.large = large;
+            this.wait = wait;
             this.readError.setVisibility(View.INVISIBLE);
             this.spinner.setVisibility(View.VISIBLE);
 
@@ -274,6 +287,7 @@ public class GalleryActivity extends Activity {
         @Override
         protected void onProgressUpdate(Integer... values) {
             super.onProgressUpdate(values);
+            this.wait.setVisibility(View.INVISIBLE);
             int progress = values[0];
             int max = values[1];
             spinner.setMax(max);
@@ -285,12 +299,14 @@ public class GalleryActivity extends Activity {
             super.onCancelled(s);
             taskMap.remove(url);
             this.spinner.setVisibility(View.INVISIBLE);
+            this.wait.setVisibility(View.INVISIBLE);
         }
 
         @Override
         protected void onPostExecute(final String bitmapPath) {
 
             this.spinner.setVisibility(View.INVISIBLE);
+            this.wait.setVisibility(View.INVISIBLE);
 
             if (isCancelled()) {
                 return;
@@ -311,14 +327,14 @@ public class GalleryActivity extends Activity {
                 Toast.makeText(GalleryActivity.this, R.string.download_finished_but_cant_read_picture_file, Toast.LENGTH_SHORT).show();
             }
 
-            readPicture(iv, gif, readError, url, bitmapPath);
+            readPicture(iv, gif, large, readError, url, bitmapPath);
 
 
         }
     }
 
 
-    private void readPicture(ImageView imageView, WebView gif, TextView readError, String url, String bitmapPath) {
+    private void readPicture(ImageView imageView, WebView gif, WebView large, TextView readError, String url, String bitmapPath) {
 
         if (bitmapPath.endsWith(".gif")) {
             readGif(gif, readError, url, bitmapPath);
@@ -337,9 +353,13 @@ public class GalleryActivity extends Activity {
         }
 
         if (isThisBitmapTooLarge) {
-            imageView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-            PhotoView photoView = (PhotoView) imageView;
-            photoView.setMaxScale(15);
+
+            readLarge(large, url, bitmapPath);
+
+            return;
+//            imageView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+//            PhotoView photoView = (PhotoView) imageView;
+//            photoView.setMaxScale(15);
         }
 
         Bitmap bitmap = null;
@@ -369,7 +389,6 @@ public class GalleryActivity extends Activity {
         if (webView.getTag() != null)
             return;
 
-        webView.setBackgroundColor(getResources().getColor(R.color.transparent));
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setLoadWithOverviewMode(true);
@@ -388,6 +407,97 @@ public class GalleryActivity extends Activity {
 
         webView.setTag(new Object());
     }
+
+    private void readLarge(WebView large, String url, String bitmapPath) {
+        large.setVisibility(View.VISIBLE);
+        bindImageViewLongClickListener(large, url, bitmapPath);
+        large.setOnTouchListener(largeOnTouchListener);
+
+        if (large.getTag() != null)
+            return;
+
+
+        large.getSettings().setJavaScriptEnabled(true);
+        large.getSettings().setUseWideViewPort(true);
+        large.getSettings().setLoadWithOverviewMode(true);
+        large.getSettings().setBuiltInZoomControls(true);
+        large.getSettings().setDisplayZoomControls(false);
+
+        large.setVerticalScrollBarEnabled(false);
+        large.setHorizontalScrollBarEnabled(false);
+
+
+        File file = new File(bitmapPath);
+
+        String str1 = "file://" + file.getAbsolutePath().replace("/mnt/sdcard/", "/sdcard/");
+        String str2 = "<html>\n<head>\n     <style>\n          html,body{background:transparent;margin:0;padding:0;}          *{-webkit-tap-highlight-color:rgba(0, 0, 0, 0);}\n     </style>\n     <script type=\"text/javascript\">\n     var imgUrl = \"" + str1 + "\";" + "     var objImage = new Image();\n" + "     var realWidth = 0;\n" + "     var realHeight = 0;\n" + "\n" + "     function onLoad() {\n" + "          objImage.onload = function() {\n" + "               realWidth = objImage.width;\n" + "               realHeight = objImage.height;\n" + "\n" + "               document.gagImg.src = imgUrl;\n" + "               onResize();\n" + "          }\n" + "          objImage.src = imgUrl;\n" + "     }\n" + "\n" + "     function onResize() {\n" + "          var scale = 1;\n" + "          var newWidth = document.gagImg.width;\n" + "          if (realWidth > newWidth) {\n" + "               scale = realWidth / newWidth;\n" + "          } else {\n" + "               scale = newWidth / realWidth;\n" + "          }\n" + "\n" + "          hiddenHeight = Math.ceil(30 * scale);\n" + "          document.getElementById('hiddenBar').style.height = hiddenHeight + \"px\";\n" + "          document.getElementById('hiddenBar').style.marginTop = -hiddenHeight + \"px\";\n" + "     }\n" + "     </script>\n" + "</head>\n" + "<body onload=\"onLoad()\" onresize=\"onResize()\" onclick=\"Android.toggleOverlayDisplay();\">\n" + "     <table style=\"width: 100%;height:100%;\">\n" + "          <tr style=\"width: 100%;\">\n" + "               <td valign=\"middle\" align=\"center\" style=\"width: 100%;\">\n" + "                    <div style=\"display:block\">\n" + "                         <img name=\"gagImg\" src=\"\" width=\"100%\" style=\"\" />\n" + "                    </div>\n" + "                    <div id=\"hiddenBar\" style=\"position:absolute; width: 100%; background: transparent;\"></div>\n" + "               </td>\n" + "          </tr>\n" + "     </table>\n" + "</body>\n" + "</html>";
+        large.loadDataWithBaseURL("file:///android_asset/", str2, "text/html", "utf-8", null);
+        large.setVisibility(View.VISIBLE);
+
+        large.setTag(new Object());
+    }
+
+    private View.OnTouchListener largeOnTouchListener = new View.OnTouchListener() {
+        boolean mPressed;
+        boolean mClose;
+        CheckForSinglePress mPendingCheckForSinglePress;
+        long lastTime = 0;
+        float[] location = new float[2];
+
+        class CheckForSinglePress implements Runnable {
+
+            View view;
+
+            public CheckForSinglePress(View view) {
+                this.view = view;
+            }
+
+            public void run() {
+                if (!mPressed && mClose) {
+                    Utility.playClickSound(view);
+                    finish();
+                }
+            }
+
+        }
+
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    mPendingCheckForSinglePress = new CheckForSinglePress(v);
+                    mPressed = true;
+                    if (System.currentTimeMillis() - lastTime > ViewConfiguration.getDoubleTapTimeout() + 100) {
+                        mClose = true;
+                        new Handler().postDelayed(mPendingCheckForSinglePress,
+                                ViewConfiguration.getDoubleTapTimeout() + 100);
+                    } else {
+                        mClose = false;
+                    }
+                    lastTime = System.currentTimeMillis();
+
+                    location[0] = event.getRawX();
+                    location[1] = event.getRawY();
+
+                    break;
+                case MotionEvent.ACTION_UP:
+                    mPressed = false;
+                    break;
+                case MotionEvent.ACTION_CANCEL:
+                    mPressed = false;
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    float x = event.getRawX();
+                    float y = event.getRawY();
+                    if (Math.abs(location[0] - x) > 5.0f && Math.abs(location[1] - y) > 5.0f) {
+                        mClose = false;
+                    }
+                    break;
+            }
+
+            return false;
+        }
+    };
 
 
     private void bindImageViewLongClickListener(View view, final String url, final String filePath) {
