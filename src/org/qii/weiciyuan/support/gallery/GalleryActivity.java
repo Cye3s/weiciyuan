@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.*;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -24,6 +25,7 @@ import org.qii.weiciyuan.support.file.FileManager;
 import org.qii.weiciyuan.support.imagetool.ImageTool;
 import org.qii.weiciyuan.support.lib.CircleProgressView;
 import org.qii.weiciyuan.support.lib.MyAsyncTask;
+import org.qii.weiciyuan.support.settinghelper.SettingUtility;
 import org.qii.weiciyuan.support.utils.Utility;
 import uk.co.senab.photoview.PhotoView;
 import uk.co.senab.photoview.PhotoViewAttacher;
@@ -149,12 +151,14 @@ public class GalleryActivity extends Activity {
             if (contentView == null)
                 return;
 
-            contentView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    finish();
-                }
-            });
+            if (SettingUtility.allowClickToCloseGallery()) {
+                contentView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        finish();
+                    }
+                });
+            }
 
             ImageView imageView = (ImageView) contentView.findViewById(R.id.image);
 
@@ -177,12 +181,14 @@ public class GalleryActivity extends Activity {
         PhotoView imageView = (PhotoView) contentView.findViewById(R.id.image);
         imageView.setVisibility(View.INVISIBLE);
 
-        imageView.setOnPhotoTapListener(new PhotoViewAttacher.OnPhotoTapListener() {
-            @Override
-            public void onPhotoTap(View view, float x, float y) {
-                GalleryActivity.this.finish();
-            }
-        });
+        if (SettingUtility.allowClickToCloseGallery()) {
+            imageView.setOnPhotoTapListener(new PhotoViewAttacher.OnPhotoTapListener() {
+                @Override
+                public void onPhotoTap(View view, float x, float y) {
+                    GalleryActivity.this.finish();
+                }
+            });
+        }
 
         WebView gif = (WebView) contentView.findViewById(R.id.gif);
         gif.setBackgroundColor(getResources().getColor(R.color.transparent));
@@ -337,7 +343,7 @@ public class GalleryActivity extends Activity {
     private void readPicture(ImageView imageView, WebView gif, WebView large, TextView readError, String url, String bitmapPath) {
 
         if (bitmapPath.endsWith(".gif")) {
-            readGif(gif, readError, url, bitmapPath);
+            readGif(gif, large, readError, url, bitmapPath);
             return;
         }
 
@@ -382,7 +388,16 @@ public class GalleryActivity extends Activity {
 
     }
 
-    private void readGif(WebView webView, TextView readError, String url, String bitmapPath) {
+    private void readGif(WebView webView, WebView large, TextView readError, String url, String bitmapPath) {
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(bitmapPath, options);
+        if (options.outWidth >= Utility.getScreenWidth() || options.outHeight >= Utility.getScreenHeight()) {
+            readLarge(large, url, bitmapPath);
+            return;
+        }
+
         webView.setVisibility(View.VISIBLE);
         bindImageViewLongClickListener(((View) webView.getParent()), url, bitmapPath);
 
@@ -411,7 +426,9 @@ public class GalleryActivity extends Activity {
     private void readLarge(WebView large, String url, String bitmapPath) {
         large.setVisibility(View.VISIBLE);
         bindImageViewLongClickListener(large, url, bitmapPath);
-        large.setOnTouchListener(largeOnTouchListener);
+        if (SettingUtility.allowClickToCloseGallery()) {
+            large.setOnTouchListener(largeOnTouchListener);
+        }
 
         if (large.getTag() != null)
             return;
