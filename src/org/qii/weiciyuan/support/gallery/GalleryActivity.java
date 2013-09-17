@@ -353,10 +353,10 @@ public class GalleryActivity extends Activity {
 
 
         boolean isThisBitmapTooLarge = ImageTool.isThisBitmapTooLargeToRead(bitmapPath);
-        if (isThisBitmapTooLarge && !alreadyShowPicturesTooLargeHint) {
-            Toast.makeText(GalleryActivity.this, R.string.picture_is_too_large_so_enable_software_layer, Toast.LENGTH_LONG).show();
-            alreadyShowPicturesTooLargeHint = true;
-        }
+//        if (isThisBitmapTooLarge && !alreadyShowPicturesTooLargeHint) {
+//            Toast.makeText(GalleryActivity.this, R.string.picture_is_too_large_so_enable_software_layer, Toast.LENGTH_LONG).show();
+//            alreadyShowPicturesTooLargeHint = true;
+//        }
 
         if (isThisBitmapTooLarge) {
 
