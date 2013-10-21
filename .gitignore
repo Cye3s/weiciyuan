@@ -14,12 +14,11 @@
 
 # Local configuration file (sdk path, etc)
 local.properties
-dexedLibs
-res
-AndroidManifest.xml
-classes.dex
-jarlist.cache
-R.txt
-resources.ap_
-aidl
-classes
+weiciyuan.iml
+.idea
+ant.properties
+proguard-project.txt
+build.xml
+project.properties
+weiciyuan.iml
+.gitignore
