@@ -73,9 +73,9 @@ public final class GlobalContext extends Application {
         buildCache();
         CrashManagerConstants.loadFromContext(this);
         CrashManager.registerHandler();
-        if (Utility.isCertificateFingerprintCorrect(this)) {
-            Crashlytics.start(this);
-        }
+        //if (Utility.isCertificateFingerprintCorrect(this)) {
+        //    Crashlytics.start(this);
+        //}
         registerActivityLifecycleCallbacks(new AppActivityLifecycleCallbacks());
     }
 

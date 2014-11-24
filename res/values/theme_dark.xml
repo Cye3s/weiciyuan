@@ -51,7 +51,7 @@
         <item name="listview_item_background_selector">@drawable/listview_item_background_selector_dark</item>
         <item name="listview_item_refresh_animation">@drawable/refresh_light</item>
 
-        <item name="link_color">@color/steelblue</item>
+        <item name="link_color">@color/link_pressed_background_color_light</item>
         <item name="link_pressed_background_color">@color/link_pressed_background_color_dark</item>
 
         <item name="line_drawable">@drawable/list_divider_holo_dark</item>

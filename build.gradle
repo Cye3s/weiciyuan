@@ -115,7 +115,7 @@ android {
                     "org.qii.weiciyuan" + ".mention://@四次元App"
             debuggable false
             runProguard false
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
         }
 
     }

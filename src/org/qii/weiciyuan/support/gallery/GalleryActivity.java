@@ -525,6 +525,7 @@ public class GalleryActivity extends Activity {
         }
 
         boolean isThisBitmapTooLarge = ImageUtility.isThisBitmapTooLargeToRead(bitmapPath);
+        alreadyShowPicturesTooLargeHint = true; //My
         if (isThisBitmapTooLarge && !alreadyShowPicturesTooLargeHint) {
 //            Toast.makeText(GalleryActivity.this,
 //                    R.string.picture_is_too_large_so_enable_software_layer, Toast.LENGTH_LONG)
